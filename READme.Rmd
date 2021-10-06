@@ -1,0 +1,96 @@
+---
+title: "README"
+author: "Alex Filo"
+date: "10/5/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+What time of day should you fly if you want to avoid delays as much as possible? Does this choice depend on anything? Season? Weather? Airport? Airline? Find three patterns (“null results” are ok!).
+
+```{r}
+library(tidyverse)
+library(nycflights13)
+library(lubridate)
+library(ggplot2)
+library(gapminder)
+library(dplyr)
+
+```
+```{r}
+weather2 = 
+  weather %>% 
+  mutate(date = make_date(year, month, day)) %>% 
+  group_by(date, origin) %>% 
+  summarize(meanTmp = mean(temp))
+head(weather2)
+```
+
+```{r}
+flights2 =
+  flights %>% 
+  mutate(date = make_date(year, month, day)) %>% 
+  left_join(airlines, by = c("carrier")) %>% 
+  group_by(hour, name) %>%
+  summarize(flights_canceled = mean(is.na(dep_time)))
+```
+
+```{r}
+flights2 %>% 
+  ggplot(aes(x = hour, y = flights_canceled)) + 
+  geom_smooth(se = F, method = "lm") +
+  geom_point()
+```
+
+It seems that flying out late at night or early in the morning should be avoided, and flying out during the middle of the day is best. There is a period from about 800 to 1300 where there were not many days with an especially high proportion of cancelled flights. As the following graphs will show, this trend is affected by other factors as well. In summary, Flights from small companies flying out of Laguardia or Newark in the middle of the summer should be avoided if you want to have the best chance of avoiding a cancelled flight.
+
+```{r}
+flights2 %>% 
+  ggplot(aes(x = hour, y = flights_canceled)) + 
+  geom_smooth(se = F, method = "lm") +
+  geom_point() +
+  facet_wrap(~name)
+```
+
+The trend of later flights having more cancellations definitely depends on the specific airline. Many of the larger airlines, like Delta, American, United, and Southwest have consistenly low proportions of flights that are cancelled throughout the day, and smaller airlines like Skywest and ExpressJet have more flights cancelled later on. Presumably this is because large companies have more employees and planes they can move around when necessary to accomodate a delay.
+
+
+```{r}
+departed_flights = 
+  flights %>% 
+  mutate(date = make_date(year, month, day)) %>%
+  left_join(airports, by = c("origin" = "faa")) %>% 
+  group_by(hour, name) %>% 
+  summarize(flights_canceled = mean(is.na(dep_time)))
+```
+
+```{r}
+departed_flights %>% 
+  ggplot(aes(x = hour, y = flights_canceled)) + 
+  geom_smooth(se = F, method = "lm") +
+  geom_point() +
+  facet_wrap(~name)
+```
+
+The trend of late night departures having higher proportions does seem to hold at Newark and Laguardia, but not at JFK. JFK tends to have slightly more cancelled flights late at night, but the proportions seem to almost always be close to 0 regardless
+
+```{r}
+date_flights = 
+  flights %>% 
+  mutate(date = make_date(year, month, day)) %>%
+  group_by(hour, month) %>% 
+  summarize(flights_canceled = mean(is.na(dep_time)))
+```
+
+```{r}
+date_flights %>% 
+  ggplot(aes(x = hour, y = flights_canceled)) + 
+  geom_smooth(se = F, method = "lm") +
+  geom_point() +
+  facet_wrap(~month)
+```
+
+Months in the middle of the year are actually most consistent with the trend of more flights being cancelled later in the day. June and July are the 2 months that show this trend most clearly.
